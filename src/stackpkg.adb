@@ -1,12 +1,6 @@
-generic  -- Generic parameters are declared here
-
-   Size : Positive;            -- Size of stack to create
-
-   type ItemType is private;   -- Type of elements that stack will contain
-
 package body StackPkg is
 
--- Determine if stack is empty or full
+   -- Determine if stack is empty or full
    function isEmpty (s : Stack) return Boolean
    is
    begin

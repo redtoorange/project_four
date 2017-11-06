@@ -2,8 +2,9 @@ package body BigNumPkg.Signed is
 --  Removes leading zeros
    function toString(X: Signed_BigNum) return String
    is
+      output : String := "Hello";
    begin
-      null;
+      return output;
    end toString;
 
    function "<"  (X, Y : Signed_BigNum) return Boolean
@@ -27,7 +28,7 @@ package body BigNumPkg.Signed is
    end "<=";
 
 
-   function ">=" (X, Y : Signed_BigNum) return Boolean;
+   function ">=" (X, Y : Signed_BigNum) return Boolean
    is
    begin
       null;
