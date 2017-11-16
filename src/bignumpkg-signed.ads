@@ -2,22 +2,22 @@
 
 package BigNumPkg.Signed is
 
-   type Signed_BigNum is new Bignum;
+   type Signed_BigNum is new BigNum;
 
-   first : Constant Signed_Bignum;
-   last : Constant Signed_Bignum;
+   first : constant Signed_BigNum;
+   last : constant Signed_BigNum;
 
-   Minus_One  : constant Signed_BigNum;
-   Zero : Constant Signed_Bignum := Signed_Bignum (BignumPkg.Zero);
-   One : Constant Signed_Bignum := Signed_Bignum (BignumPkg.One);
+   Minus_One : constant Signed_BigNum;
+   Zero : constant Signed_BigNum := Signed_BigNum (BigNumPkg.Zero);
+   One  : constant Signed_BigNum := Signed_BigNum (BigNumPkg.One);
 
    Signed_BigNumOverFlow : exception;
 
    --  Removes leading zeros
-   function toString(X: Signed_BigNum) return String;
+   function toString (X : Signed_BigNum) return String;
 
-   function "<"  (X, Y : Signed_BigNum) return Boolean;
-   function ">"  (X, Y : Signed_BigNum) return Boolean;
+   function "<" (X, Y : Signed_BigNum) return Boolean;
+   function ">" (X, Y : Signed_BigNum) return Boolean;
    function "<=" (X, Y : Signed_BigNum) return Boolean;
    function ">=" (X, Y : Signed_BigNum) return Boolean;
 
@@ -40,10 +40,9 @@ package BigNumPkg.Signed is
    procedure Get (Item : out Signed_BigNum);
 
 private
-   minus_one : Constant Signed_Bignum := (others => 9);
+   minus_one : constant Signed_BigNum := (others => 9);
 
    --  Only valid for base 10
-   first : Constant Signed_Bignum := (0 => 5, others => 0);
-   last : Constant Signed_Bignum := (0 => 4, others => 9);
+   first : constant Signed_BigNum := (0 => 5, others => 0);
+   last  : constant Signed_BigNum := (0 => 4, others => 9);
 end BigNumPkg.Signed;
-
