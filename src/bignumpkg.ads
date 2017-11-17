@@ -31,7 +31,8 @@ package BigNumPkg is
    procedure Get (Item : out BigNum);
    procedure Put (Item : BigNum; Width : Natural := 1);
 private
-   Size : constant Positive := 50;
+   -- For testing, we will change to 4.  Default is 50!
+   Size : constant Positive := 4;
    type BigNum is array (0 .. Size - 1) of Integer;
 
    Zero : constant BigNum := (others => 0);

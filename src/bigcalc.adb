@@ -5,7 +5,8 @@ with StackPkg;
 with BigNumPkg.Signed; use BigNumPkg.Signed;
 
 procedure bigcalc is
-   OP_Chars : constant String := "+-*pPq";
+   Error_Message : constant String := "Error: Stack is empty";
+   OP_Chars      : constant String := "+-*pPq";
    type Operator is (ADD, SUB, MUL, PRINT, POP, QUIT, NOP);
    package Operator_IO is new Enumeration_IO (Operator);
 
@@ -50,18 +51,24 @@ procedure bigcalc is
       case op is
          when SUB =>
             if Get_Operands (a, b, s) then
-               a := a + b;  -- This should be a minus sign
+               a := b - a;
                push (a, s);
+            else
+               Put_Line (Error_Message);
             end if;
          when ADD =>
             if Get_Operands (a, b, s) then
                a := a + b;
                push (a, s);
+            else
+               Put_Line (Error_Message);
             end if;
          when MUL =>
             if Get_Operands (a, b, s) then
                a := a * b;
                push (a, s);
+            else
+               Put_Line (Error_Message);
             end if;
          when others =>
             Operator_IO.Put (op);
@@ -75,10 +82,19 @@ procedure bigcalc is
          when SUB | ADD | MUL =>
             Math_Operator (op, s);
          when PRINT =>
-            Put (top (s));
-            New_Line;
+            if not isEmpty (s) then
+               Put (top (s));
+               New_Line;
+            else
+               Put_Line (Error_Message);
+            end if;
+
          when POP =>
-            pop (s);
+            if not isEmpty (s) then
+               pop (s);
+            else
+               Put_Line (Error_Message);
+            end if;
          when QUIT =>
             null;
          when NOP =>
@@ -140,135 +156,54 @@ procedure bigcalc is
       return result;
    end Parse_Char;
 
---     numStack : BigNumStack.Stack;
-begin
-   --     declare
-   --        --line : String := Get_Line;
-   --        ch    : Character;
-   --        nl    : Boolean := False;
-   --        bn    : Signed_BigNum;
-   --        op    : Operator;
-   --        trash : Character;
-   --     begin
-   --        Main_Loop :
-   --        loop
-   --           Look_Ahead (Item => ch, End_Of_Line => nl);
-   --
-   --           if not nl then
-   --              if ch = 'q' then
-   --                 Put_Line ("Quitting");
-   --                 exit Main_Loop;
-   --              elsif Is_Operator (ch) then
-   --                 Get (op);
-   --                 Put ("Found an Operator <");
-   --                 Operator_IO.Put (op);
-   --                 Put_Line (">");
-   --
-   --                 Apply_Operator (op, numStack);
-   --              elsif Is_Number (ch) then
-   --                 Get (bn);
-   --                 Put ("Found a Number <");
-   --                 Put (bn);
-   --                 Put_Line (">");
-   --                 push (bn, numStack);
-   --              else
-   --                 Get (trash);
-   --                 if trash /= ' ' then
-   --                    Put ("Found something else <");
-   --                    Put (trash);
-   --                    Put_Line (">");
-   --                 end if;
-   --
-   --              end if;
-   --           elsif nl then
-   --              Skip_Line;
-   --           end if;
-   --        end loop Main_Loop;
-   --
-   --        declare
-   --           index : Integer := 0;
-   --        begin
-   --           while not isEmpty (numStack) loop
-   --              declare
-   --                 current : Signed_BigNum := top (numStack);
-   --              begin
-   --                 BigNumStack.pop (numStack);
-   --                 Put (index, 0);
-   --                 Put (": <");
-   --                 Put (current);
-   --                 Put_Line (">");
-   --                 index := index + 1;
-   --              end;
-   --
-   --           end loop;
-   --        end;
-   declare
-      a, b, c : Signed_BigNum;
-      result  : Boolean;
+   procedure Print_Stack (s : in out BigNumStack.Stack) is
+      index   : Integer := 0;
+      current : Signed_BigNum;
    begin
-      a := BigNumPkg.Signed.Minus_One;
-      b := BigNumPkg.Signed.Minus_One;
+      while not isEmpty (s) loop
+         current := top (s);
+         pop (s);
+         Put (index, 0);
+         Put (": <");
+         Put (current);
+         Put_Line (">");
+         index := index + 1;
+      end loop;
+   end Print_Stack;
 
-      if a < b then
-         Put (a);
-         Put (" < ");
-         Put (b);
-      else
-         Put (a);
-         Put (" !< ");
-         Put (b);
-      end if;
+   procedure Input_Loop (s : in out BigNumStack.Stack) is
+      letter : Character;
+      nl     : Boolean;
+      bn     : Signed_BigNum;
+      op     : Operator;
+   begin
+      loop
+         Look_Ahead (letter, nl);
+         exit when letter = 'q';
 
-      New_Line;
+         if not nl then
+            if Is_Operator (letter) then
+               Get (op);
+               Apply_Operator (op, s);
+            elsif Is_Number (letter) then
+               Get (bn);
+               push (bn, s);
+            else
+               Get (letter);
+               if letter /= ' ' then
+                  Put ("Unknown input <");
+                  Put (letter);
+                  Put_Line ("> skipping...");
+               end if;
+            end if;
+         elsif nl then
+            Skip_Line;
+         end if;
+      end loop;
+   end Input_Loop;
 
-      if a > b then
-         Put (a);
-         Put (" > ");
-         Put (b);
-      else
-         Put (a);
-         Put (" !> ");
-         Put (b);
-      end if;
-
-      New_Line;
-
-      if a <= b then
-         Put (a);
-         Put (" <= ");
-         Put (b);
-      else
-         Put (a);
-         Put (" !<= ");
-         Put (b);
-      end if;
-
-      New_Line;
-
-      if a >= b then
-         Put (a);
-         Put (" >= ");
-         Put (b);
-      else
-         Put (a);
-         Put (" !>= ");
-         Put (b);
-      end if;
-
-      New_Line;
-
-      if a = b then
-         Put (a);
-         Put (" = ");
-         Put (b);
-      else
-         Put (a);
-         Put (" != ");
-         Put (b);
-      end if;
-
-      New_Line;
-
-   end;
-
+   numStack : BigNumStack.Stack;
+begin
+   Input_Loop (numStack);
+   Print_Stack (numStack);
 end bigcalc;

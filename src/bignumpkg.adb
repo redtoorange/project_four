@@ -15,8 +15,22 @@ package body BigNumPkg is
    -- This is a stub routine
    -- You are to complete the implementation of this routine
    function toString (X : BigNum) return String is
+      first  : Integer;
+      output : String (1 .. Size);
    begin
-      return "";
+      for I in 0 .. Size - 1 loop
+         if X (I) /= 0 then
+            first := I;
+            exit;
+         end if;
+      end loop;
+
+      -- Write out the digits of the number.
+      for I in first .. Size - 1 loop
+         output (I + 1) := Character'Val (Character'Pos ('0') + X (I));
+      end loop;
+
+      return output (first + 1 .. Size);
    end toString;
 
    function "<" (X, Y : BigNum) return Boolean is
