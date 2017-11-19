@@ -5,22 +5,21 @@ with StackPkg;
 with BigNumPkg.Signed;    use BigNumPkg.Signed;
 
 procedure bigcalc is
+   Stack_Size    : constant        := 100;
    Error_Message : constant String := "Error: Stack is empty";
    OP_Chars      : constant String := "+-*pPqe";
 
    type Operator is (ADD, SUB, MUL, PRINT, POP, EMPTY);
    Operator_Exception : exception;
 
-   package Signed_BigNum_Stack is new StackPkg (100, Signed_BigNum);
+   package Signed_BigNum_Stack is new StackPkg (Stack_Size, Signed_BigNum);
    use Signed_BigNum_Stack;
 
    ----------------------------------------------------------
-   -- Purpose: Performs multiplication by repeated addition
-   -- Parameters: x, y: values to multiply
-   -- Precondition: x <= y
-   -- Postcondition: Returns product of x and y
+   -- Purpose: Empty the contents of a Stack, printing each item
+   -- Parameters: s: Stack to print and clear
    ----------------------------------------------------------
-   procedure Print_Stack (s : in out Stack) is
+   procedure Print_Clear_Stack (s : in out Stack) is
       index   : Integer := 0;
       current : Signed_BigNum;
    begin
@@ -33,7 +32,7 @@ procedure bigcalc is
          Put_Line (">");
          index := index + 1;
       end loop;
-   end Print_Stack;
+   end Print_Clear_Stack;
 
    ----------------------------------------------------------
    -- Purpose: Pop two operands from the Stack and store in A
@@ -69,7 +68,7 @@ procedure bigcalc is
    -- Precondition: x <= y
    -- Postcondition: Returns product of x and y
    ----------------------------------------------------------
-   procedure Math_Operator (op : in Operator; s : in out Stack) is
+   procedure Math_Operation (op : in Operator; s : in out Stack) is
       a, b : Signed_BigNum;
    begin
       Get_Operands (a, b, s);
@@ -79,11 +78,18 @@ procedure bigcalc is
       elsif op = SUB then
          a := b - a;
       elsif op = MUL then
-         a := a * b;
+         begin
+            a := a * b;
+         exception
+            when Signed_BigNumOverFlow =>
+               Put_Line
+                 ("Result for Signed_BigNum multiply needs more digits");
+               return;
+         end;
       end if;
 
       push (a, s);
-   end Math_Operator;
+   end Math_Operation;
 
    ----------------------------------------------------------
    -- Purpose: Performs multiplication by repeated addition
@@ -91,24 +97,24 @@ procedure bigcalc is
    -- Precondition: x <= y
    -- Postcondition: Returns product of x and y
    ----------------------------------------------------------
-   procedure Apply_Operator (op : in Operator; s : in out Stack) is
+   procedure Perform_Operation (op : in Operator; s : in out Stack) is
    begin
       case op is
          when SUB | ADD | MUL =>
-            Math_Operator (op, s);
+            Math_Operation (op, s);
          when PRINT =>
             Put (top (s));
             New_Line;
          when POP =>
             pop (s);
          when EMPTY =>
-            Print_Stack (s);
+            Print_Clear_Stack (s);
       end case;
 
    exception
       when Stack_Empty =>
          Put_Line (Error_Message);
-   end Apply_Operator;
+   end Perform_Operation;
 
    ----------------------------------------------------------
    -- Purpose: Performs multiplication by repeated addition
@@ -158,10 +164,8 @@ procedure bigcalc is
      (c in '0' .. '9' or c = '_');
 
    ----------------------------------------------------------
-   -- Purpose: Performs multiplication by repeated addition
-   -- Parameters: x, y: values to multiply
-   -- Precondition: x <= y
-   -- Postcondition: Returns product of x and y
+   -- Purpose: Get the next Character, if it's not a space, log an
+   --    error to the user and toss the Character.
    ----------------------------------------------------------
    procedure Handle_Other is
       letter : Character;
@@ -177,10 +181,8 @@ procedure bigcalc is
    end Handle_Other;
 
    ----------------------------------------------------------
-   -- Purpose: Performs multiplication by repeated addition
-   -- Parameters: x, y: values to multiply
-   -- Precondition: x <= y
-   -- Postcondition: Returns product of x and y
+   -- Purpose: Read in the next Signed_BigNum and push it on the Stack
+   -- Parameters: s: Stack to push input onto.
    ----------------------------------------------------------
    procedure Handle_Number (s : out Stack) is
       bn : Signed_BigNum;
@@ -190,21 +192,18 @@ procedure bigcalc is
    end Handle_Number;
 
    ----------------------------------------------------------
-   -- Purpose: Performs multiplication by repeated addition
-   -- Parameters: x, y: values to multiply
-   -- Precondition: x <= y
-   -- Postcondition: Returns product of x and y
+   -- Purpose: Read in the next Operator and perform it's action.
+   -- Parameters: s: Stack to perform operations on.
    ----------------------------------------------------------
    procedure Handle_Operator (s : out Stack) is
       oper : Operator;
    begin
       Get (oper);
-      Apply_Operator (oper, s);
+      Perform_Operation (oper, s);
    end Handle_Operator;
 
    ----------------------------------------------------------
-   -- Purpose: Parse input Character and route execution according to it's
-   --    Type.
+   -- Purpose: Parse input Character and route execution accordingly.
    -- Parameters: c: Character to parse for execution flow.
    --             s: Stack to preform operations on.
    ----------------------------------------------------------
@@ -228,12 +227,14 @@ procedure bigcalc is
       nl     : Boolean;      -- Was a newline recieved
    begin
       loop
-         Look_Ahead (letter, nl);  -- Grab the next Character
-         exit when letter = 'q';   -- If it's q, just Quit
+         -- Grab the next Character
+         Look_Ahead (letter, nl);
+         exit when letter = 'q';
 
-         if nl then
+         if nl or letter = '#' then
             Skip_Line;
          else
+            -- Send the character for processing
             Parse_Char (letter, s);
          end if;
 
@@ -244,5 +245,4 @@ procedure bigcalc is
    numStack : Stack;
 begin
    Input_Loop (numStack);
-   Print_Stack (numStack);
 end bigcalc;

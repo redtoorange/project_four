@@ -3,11 +3,18 @@ with Ada.Integer_Text_IO; use Ada.Integer_Text_IO;
 
 package body BigNumPkg.Signed is
 
+   ----------------------------------------------------------
+   -- Purpose: Determine if the Signed_BigNum is negative.
+   -- Parameters: X: Signed_BigNum to test.
+   ----------------------------------------------------------
    function Is_Negative
      (X : Signed_BigNum) return Boolean is
      (BigNum (X) >= BigNum (first));
 
-   --  Removes leading zeros
+   ----------------------------------------------------------
+   -- Purpose: Convert a Signed_BigNum into a String.
+   -- Parameters: X: Signed_BigNum to convert.
+   ----------------------------------------------------------
    function toString (X : Signed_BigNum) return String is
    begin
       if Is_Negative (X) then
@@ -21,6 +28,10 @@ package body BigNumPkg.Signed is
       end if;
    end toString;
 
+   ----------------------------------------------------------
+   -- Purpose: Special operator to compare Signed_BigNums
+   -- Parameters: X,Y: Signed_BigNums to compare
+   ----------------------------------------------------------
    function "<" (X, Y : Signed_BigNum) return Boolean is
    begin
       if Is_Negative (X) and not Is_Negative (Y) then
@@ -34,82 +45,134 @@ package body BigNumPkg.Signed is
       end if;
    end "<";
 
+   ----------------------------------------------------------
+   -- Purpose: Special operator to compare Signed_BigNums
+   -- Parameters: X,Y: Signed_BigNums to compare
+   ----------------------------------------------------------
    function ">"
      (X, Y : Signed_BigNum) return Boolean is
      (not (X < Y or X = Y));
 
+   ----------------------------------------------------------
+   -- Purpose: Special operator to compare Signed_BigNums
+   -- Parameters: X,Y: Signed_BigNums to compare
+   ----------------------------------------------------------
    function "<=" (X, Y : Signed_BigNum) return Boolean is (X < Y or X = Y);
 
+   ----------------------------------------------------------
+   -- Purpose: Special operator to compare Signed_BigNums
+   -- Parameters: X,Y: Signed_BigNums to compare
+   ----------------------------------------------------------
    function ">=" (X, Y : Signed_BigNum) return Boolean is (X > Y or X = Y);
 
-   --  Returns the negative of X
-   --  N.B. the smallest negative cannot be negated
-   function negate (X : Signed_BigNum) return Signed_BigNum is
-      Y : Signed_BigNum;
+   function Invert_Digits (X : Signed_BigNum) return Signed_BigNum is
+      Y : Signed_BigNum := X;
    begin
-      if X = first then
-         raise Signed_BigNumOverFlow;
-      end if;
-
       for I in reverse 0 .. Size - 1 loop
          Y (I) := 9 - X (I);
       end loop;
 
-      Y := Y + One;
+      return Y + One;
+   end Invert_Digits;
 
-      return Y;
+   ----------------------------------------------------------
+   -- Purpose: Returns the negative of X
+   --    N.B. the smallest negative cannot be negated
+   -- Parameters: X: Signed_BigNum to negate
+   ----------------------------------------------------------
+   function negate (X : Signed_BigNum) return Signed_BigNum is
+   begin
+      if Is_Negative (X) then
+         return X;
+      else
+         return Invert_Digits (X);
+      end if;
    end negate;
 
-   --  Return absolute value of X
-   --  N.B. absolute value of the smallest negative cannot be represented
+   ----------------------------------------------------------
+   -- Purpose: Return absolute value of X
+   --    N.B. absolute value of the smallest negative cannot be represented
+   -- Parameters: X: Number to get the abs of.
+   ----------------------------------------------------------
    function abs_val (X : Signed_BigNum) return Signed_BigNum is
-      Y : Signed_BigNum := X;
    begin
-      if Y = first then
+      if X = first then
          raise Signed_BigNumOverFlow;
-      elsif Is_Negative (Y) then
-         Y := negate (Y);
+      elsif Is_Negative (X) then
+         return Invert_Digits (X);
+      else
+         return X;
       end if;
-
-      return Y;
    end abs_val;
 
+   ----------------------------------------------------------
+   -- Purpose: Empty the contents of a Stack, printing each item
+   -- Parameters: s: Stack to print and clear
+   ----------------------------------------------------------
    function "+" (X, Y : Signed_BigNum) return Signed_BigNum is
       overflow : Boolean;
       result   : Signed_BigNum;
    begin
       plus_ov (BigNum (X), BigNum (Y), BigNum (result), overflow);
 
-      if (Is_Negative (X) and Is_Negative (Y) and not Is_Negative (result))
-        or else
-        (not Is_Negative (X) and not Is_Negative (Y) and Is_Negative (result))
-      then
-         raise Signed_BigNumOverFlow;
-      end if;
+      declare
+         A : Boolean := Is_Negative (X);
+         B : Boolean := Is_Negative (Y);
+         C : Boolean := Is_Negative (result);
+      begin
+         if (A = B) and (A /= C or B /= C) then
+            raise Signed_BigNumOverFlow;
+         end if;
+      end;
 
       return Signed_BigNum (result);
    end "+";
 
-   function "-" (X, Y : Signed_BigNum) return Signed_BigNum is
-   begin
-      return X + negate (Y);
-   end "-";
+   ----------------------------------------------------------
+   -- Purpose: Empty the contents of a Stack, printing each item
+   -- Parameters: s: Stack to print and clear
+   ----------------------------------------------------------
+   function "-"
+     (X, Y : Signed_BigNum) return Signed_BigNum is
+     (X + Invert_Digits (Y));
 
+   ----------------------------------------------------------
+   -- Purpose: Empty the contents of a Stack, printing each item
+   -- Parameters: s: Stack to print and clear
+   ----------------------------------------------------------
    function "*" (X, Y : Signed_BigNum) return Signed_BigNum is
       result   : Signed_BigNum;
       negative : Boolean := Is_Negative (X) /= Is_Negative (Y);
    begin
+      if X = Zero or Y = Zero then
+         return Zero;
+      end if;
+
+      -- 1 convert both to positive
+      -- 2 multiply the two numbers
+      -- 3 negate the number if it should be negative
+
       result := Signed_BigNum (BigNum (abs_val (X)) * BigNum (abs_val (Y)));
 
-      if negative and result /= first then
-         result := negate (result);
-      elsif not negative and result = first then
+      if Is_Negative (result) and not negative then
          raise Signed_BigNumOverFlow;
       end if;
 
+      if negative then
+         result := negate (result);
+      end if;
+
       return result;
+
+   exception
+      when BigNumOverFlow =>
+         raise Signed_BigNumOverFlow;
    end "*";
 
+   ----------------------------------------------------------
+   -- Purpose: Empty the contents of a Stack, printing each item
+   -- Parameters: s: Stack to print and clear
+   ----------------------------------------------------------
    procedure Put (Item : Signed_BigNum; Width : Natural := 1) is
    begin
       if Is_Negative (Item) then
@@ -117,7 +180,7 @@ package body BigNumPkg.Signed is
          if Item = first then
             Put (BigNum (Item), Width);
          else
-            Put (BigNum (negate (Item)), Width);
+            Put (BigNum (abs_val (Item)), Width);
          end if;
 
       else
@@ -125,6 +188,10 @@ package body BigNumPkg.Signed is
       end if;
    end Put;
 
+   ----------------------------------------------------------
+   -- Purpose: Empty the contents of a Stack, printing each item
+   -- Parameters: s: Stack to print and clear
+   ----------------------------------------------------------
    --  Get reads positive and negative numbers
    --  Negative numbers are preceded by a minus sign (ie '_')
    procedure Get (Item : out Signed_BigNum) is
@@ -159,6 +226,10 @@ package body BigNumPkg.Signed is
       end if;
 
       Get (BigNum (Item));
+
+      if Is_Negative (Item) and Item /= first then
+         raise Signed_BigNumOverFlow;
+      end if;
 
       if Negative then
          if Item /= first then
