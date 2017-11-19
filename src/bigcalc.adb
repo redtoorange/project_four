@@ -1,107 +1,121 @@
 with Ada.Text_IO;         use Ada.Text_IO;
 with Ada.Integer_Text_IO; use Ada.Integer_Text_IO;
-
+with Ada.Strings.Fixed;   use Ada.Strings.Fixed;
 with StackPkg;
-with BigNumPkg.Signed; use BigNumPkg.Signed;
+with BigNumPkg.Signed;    use BigNumPkg.Signed;
 
 procedure bigcalc is
    Error_Message : constant String := "Error: Stack is empty";
-   OP_Chars      : constant String := "+-*pPq";
-   type Operator is (ADD, SUB, MUL, PRINT, POP, QUIT, NOP);
-   package Operator_IO is new Enumeration_IO (Operator);
+   OP_Chars      : constant String := "+-*pPqe";
 
-   type Input_Type is (NUM, OP, OTHER);
+   type Operator is (ADD, SUB, MUL, PRINT, POP, EMPTY);
+   Operator_Exception : exception;
 
-   package BigNumStack is new StackPkg (100, Signed_BigNum);
-   use BigNumStack;
+   package Signed_BigNum_Stack is new StackPkg (100, Signed_BigNum);
+   use Signed_BigNum_Stack;
 
-   -- Grab two operands off the stack, returning True if two were obtained,
-   --  False otherwise.
-   function Get_Operands
-     (a, B :    out Signed_BigNum;
-      s    : in out BigNumStack.Stack) return Boolean
-   is
-      success : Boolean := True;
+   ----------------------------------------------------------
+   -- Purpose: Performs multiplication by repeated addition
+   -- Parameters: x, y: values to multiply
+   -- Precondition: x <= y
+   -- Postcondition: Returns product of x and y
+   ----------------------------------------------------------
+   procedure Print_Stack (s : in out Stack) is
+      index   : Integer := 0;
+      current : Signed_BigNum;
+   begin
+      while not isEmpty (s) loop
+         current := top (s);
+         pop (s);
+         Put (index, 0);
+         Put (": <");
+         Put (current);
+         Put_Line (">");
+         index := index + 1;
+      end loop;
+   end Print_Stack;
+
+   ----------------------------------------------------------
+   -- Purpose: Pop two operands from the Stack and store in A
+   --    and B, if the pop fails, the Stack remains unchanged.
+   -- Parameters: a, b: Operand A and B from the Stack
+   --                s: Stack to pull operands from
+   ----------------------------------------------------------
+   procedure Get_Operands (a, B : out Signed_BigNum; s : in out Stack) is
+
    begin
       -- Grab Operand A
       if not isEmpty (s) then
          a := top (s);
          pop (s);
       else
-         success := False;
+         raise Stack_Empty;
       end if;
 
       -- Grab Operand B
-      if success and then not isEmpty (s) then
+      if not isEmpty (s) then
          B := top (s);
          pop (s);
       else
-         -- No second Operand, push A back on
-         push (a, s);
-         success := False;
+         push (a, s);    -- No second Operand, push A back on
+         raise Stack_Empty;
       end if;
 
-      return success;
    end Get_Operands;
 
-   procedure Math_Operator (op : in Operator; s : in out BigNumStack.Stack) is
+   ----------------------------------------------------------
+   -- Purpose: Performs multiplication by repeated addition
+   -- Parameters: x, y: values to multiply
+   -- Precondition: x <= y
+   -- Postcondition: Returns product of x and y
+   ----------------------------------------------------------
+   procedure Math_Operator (op : in Operator; s : in out Stack) is
       a, b : Signed_BigNum;
    begin
+      Get_Operands (a, b, s);
 
-      case op is
-         when SUB =>
-            if Get_Operands (a, b, s) then
-               a := b - a;
-               push (a, s);
-            else
-               Put_Line (Error_Message);
-            end if;
-         when ADD =>
-            if Get_Operands (a, b, s) then
-               a := a + b;
-               push (a, s);
-            else
-               Put_Line (Error_Message);
-            end if;
-         when MUL =>
-            if Get_Operands (a, b, s) then
-               a := a * b;
-               push (a, s);
-            else
-               Put_Line (Error_Message);
-            end if;
-         when others =>
-            Operator_IO.Put (op);
-            Put_Line (" is not a math operator!");
-      end case;
+      if op = ADD then
+         a := a + b;
+      elsif op = SUB then
+         a := b - a;
+      elsif op = MUL then
+         a := a * b;
+      end if;
+
+      push (a, s);
    end Math_Operator;
 
-   procedure Apply_Operator (op : in Operator; s : in out BigNumStack.Stack) is
+   ----------------------------------------------------------
+   -- Purpose: Performs multiplication by repeated addition
+   -- Parameters: x, y: values to multiply
+   -- Precondition: x <= y
+   -- Postcondition: Returns product of x and y
+   ----------------------------------------------------------
+   procedure Apply_Operator (op : in Operator; s : in out Stack) is
    begin
       case op is
          when SUB | ADD | MUL =>
             Math_Operator (op, s);
          when PRINT =>
-            if not isEmpty (s) then
-               Put (top (s));
-               New_Line;
-            else
-               Put_Line (Error_Message);
-            end if;
-
+            Put (top (s));
+            New_Line;
          when POP =>
-            if not isEmpty (s) then
-               pop (s);
-            else
-               Put_Line (Error_Message);
-            end if;
-         when QUIT =>
-            null;
-         when NOP =>
-            null;
+            pop (s);
+         when EMPTY =>
+            Print_Stack (s);
       end case;
+
+   exception
+      when Stack_Empty =>
+         Put_Line (Error_Message);
    end Apply_Operator;
 
+   ----------------------------------------------------------
+   -- Purpose: Performs multiplication by repeated addition
+   -- Parameters: x, y: values to multiply
+   -- Precondition: x <= y
+   -- Postcondition: Returns product of x and y
+   ----------------------------------------------------------
    procedure Get (op : out Operator) is
       c : Character;
    begin
@@ -118,91 +132,116 @@ procedure bigcalc is
             op := PRINT;
          when 'P' =>
             op := POP;
-         when 'q' =>
-            op := QUIT;
+         when 'e' =>
+            op := EMPTY;
          when others =>
-            op := NOP;
+            raise Operator_Exception;
       end case;
    end Get;
 
-   function Is_Operator (c : in Character) return Boolean is
+   ----------------------------------------------------------
+   -- Purpose: Check if a Character should be treated as an operator
+   -- Parameters: c: Character to parse
+   -- Returns: True if c in "+-*pPq"
+   ----------------------------------------------------------
+   function Is_Operator
+     (c : in Character) return Boolean is
+     (Index (OP_Chars, "" & c) > 0);
+
+   ----------------------------------------------------------
+   -- Purpose: Check if a Character should be treated as a number
+   -- Parameters: c: Character to parse
+   -- Returns: True if c is in '0'..'9' or '_'
+   ----------------------------------------------------------
+   function Is_Number
+     (c : in Character) return Boolean is
+     (c in '0' .. '9' or c = '_');
+
+   ----------------------------------------------------------
+   -- Purpose: Performs multiplication by repeated addition
+   -- Parameters: x, y: values to multiply
+   -- Precondition: x <= y
+   -- Postcondition: Returns product of x and y
+   ----------------------------------------------------------
+   procedure Handle_Other is
+      letter : Character;
    begin
-      for k of OP_Chars loop
-         if k = c then
-            return True;
-         end if;
-      end loop;
+      Get (letter);
 
-      return False;
-   end Is_Operator;
+      -- Got something other than a space, log error.
+      if letter /= ' ' then
+         Put ("Unknown input <");
+         Put (letter);
+         Put_Line ("> skipping...");
+      end if;
+   end Handle_Other;
 
-   function Is_Number (c : in Character) return Boolean is
+   ----------------------------------------------------------
+   -- Purpose: Performs multiplication by repeated addition
+   -- Parameters: x, y: values to multiply
+   -- Precondition: x <= y
+   -- Postcondition: Returns product of x and y
+   ----------------------------------------------------------
+   procedure Handle_Number (s : out Stack) is
+      bn : Signed_BigNum;
    begin
-      return
-        (Character'Pos (c) >= Character'Pos ('0')
-         and then Character'Pos (c) <= Character'Pos ('9'))
-        or else c = '_';
-   end Is_Number;
+      Get (bn);
+      push (bn, s);
+   end Handle_Number;
 
-   function Parse_Char (c : in Character) return Input_Type is
-      result : Input_Type := OTHER;
+   ----------------------------------------------------------
+   -- Purpose: Performs multiplication by repeated addition
+   -- Parameters: x, y: values to multiply
+   -- Precondition: x <= y
+   -- Postcondition: Returns product of x and y
+   ----------------------------------------------------------
+   procedure Handle_Operator (s : out Stack) is
+      oper : Operator;
+   begin
+      Get (oper);
+      Apply_Operator (oper, s);
+   end Handle_Operator;
+
+   ----------------------------------------------------------
+   -- Purpose: Parse input Character and route execution according to it's
+   --    Type.
+   -- Parameters: c: Character to parse for execution flow.
+   --             s: Stack to preform operations on.
+   ----------------------------------------------------------
+   procedure Parse_Char (c : in Character; s : in out Stack) is
    begin
       if Is_Number (c) then
-         result := NUM;
+         Handle_Number (s);
       elsif Is_Operator (c) then
-         result := OP;
+         Handle_Operator (s);
+      else
+         Handle_Other;
       end if;
-
-      return result;
    end Parse_Char;
 
-   procedure Print_Stack (s : in out BigNumStack.Stack) is
-      index   : Integer := 0;
-      current : Signed_BigNum;
-   begin
-      while not isEmpty (s) loop
-         current := top (s);
-         pop (s);
-         Put (index, 0);
-         Put (": <");
-         Put (current);
-         Put_Line (">");
-         index := index + 1;
-      end loop;
-   end Print_Stack;
-
-   procedure Input_Loop (s : in out BigNumStack.Stack) is
-      letter : Character;
-      nl     : Boolean;
-      bn     : Signed_BigNum;
-      op     : Operator;
+   ----------------------------------------------------------
+   -- Purpose: Continue taking user input until 'q' is recieved.
+   -- Parameters: s: values to multiply
+   ----------------------------------------------------------
+   procedure Input_Loop (s : in out Stack) is
+      letter : Character;    -- Next Character of input
+      nl     : Boolean;      -- Was a newline recieved
    begin
       loop
-         Look_Ahead (letter, nl);
-         exit when letter = 'q';
+         Look_Ahead (letter, nl);  -- Grab the next Character
+         exit when letter = 'q';   -- If it's q, just Quit
 
-         if not nl then
-            if Is_Operator (letter) then
-               Get (op);
-               Apply_Operator (op, s);
-            elsif Is_Number (letter) then
-               Get (bn);
-               push (bn, s);
-            else
-               Get (letter);
-               if letter /= ' ' then
-                  Put ("Unknown input <");
-                  Put (letter);
-                  Put_Line ("> skipping...");
-               end if;
-            end if;
-         elsif nl then
+         if nl then
             Skip_Line;
+         else
+            Parse_Char (letter, s);
          end if;
+
       end loop;
    end Input_Loop;
 
-   numStack : BigNumStack.Stack;
+   -- Entry point
+   numStack : Stack;
 begin
    Input_Loop (numStack);
    Print_Stack (numStack);
