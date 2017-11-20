@@ -148,19 +148,23 @@ package body BigNumPkg.Signed is
          return Zero;
       end if;
 
-      -- 1 convert both to positive
-      -- 2 multiply the two numbers
-      -- 3 negate the number if it should be negative
-
       result := Signed_BigNum (BigNum (abs_val (X)) * BigNum (abs_val (Y)));
 
-      if Is_Negative (result) and not negative then
-         raise Signed_BigNumOverFlow;
+      if Is_Negative (result) then
+         if result = first and negative then
+            if not negative then
+
+            end if;
+         else
+            raise Signed_BigNumOverFlow;
+         end if;
+      else
+         if negative then
+            result := negate (result);
+         end if;
       end if;
 
-      if negative then
-         result := negate (result);
-      end if;
+
 
       return result;
 
