@@ -1,8 +1,9 @@
 with Ada.Text_IO;         use Ada.Text_IO;
 with Ada.Integer_Text_IO; use Ada.Integer_Text_IO;
 with Ada.Strings.Fixed;   use Ada.Strings.Fixed;
-with StackPkg;
+with Ada.Exceptions;      use Ada.Exceptions;
 with BigNumPkg.Signed;    use BigNumPkg.Signed;
+with StackPkg;
 
 procedure bigcalc is
    Stack_Size    : constant        := 100;
@@ -35,31 +36,31 @@ procedure bigcalc is
    end Print_Clear_Stack;
 
    ----------------------------------------------------------
-   -- Purpose: Pop two operands from the Stack and store in A
+   -- Purpose: Pop two operands off the Stack and store them in A
    --    and B, if the pop fails, the Stack remains unchanged.
    -- Parameters: a, b: Operand A and B from the Stack
    --                s: Stack to pull operands from
    ----------------------------------------------------------
-   procedure Get_Operands (a, B : out Signed_BigNum; s : in out Stack) is
+   procedure Get_Operands (A, B : out Signed_BigNum; S : in out Stack) is
 
    begin
-      -- Grab Operand A
-      if not isEmpty (s) then
-         a := top (s);
-         pop (s);
+      -- Try to grab Operand A
+      if not isEmpty (S)then
+         A := top (S);
+         pop (S);
       else
-         raise Stack_Empty;
+         raise Stack_Empty with "Error: Stack is empty";
       end if;
 
-      -- Grab Operand B
-      if not isEmpty (s) then
-         B := top (s);
-         pop (s);
+      -- Try to grab Operand B
+      if not isEmpty (S) then
+         B := top (S);
+         pop (S);
       else
-         push (a, s);    -- No second Operand, push A back on
-         raise Stack_Empty;
+         -- No second Operand, push A back on the stack
+		 push (A, S);    
+		 raise Stack_Empty with "Error: Stack is empty";
       end if;
-
    end Get_Operands;
 
    ----------------------------------------------------------
@@ -68,27 +69,20 @@ procedure bigcalc is
    -- Precondition: x <= y
    -- Postcondition: Returns product of x and y
    ----------------------------------------------------------
-   procedure Math_Operation (op : in Operator; s : in out Stack) is
-      a, b : Signed_BigNum;
+   procedure Math_Operation (op : in Operator; S : in out Stack) is
+      A, B : Signed_BigNum;
    begin
-      Get_Operands (a, b, s);
+      Get_Operands (A, B, S);
 
       if op = ADD then
-         a := a + b;
+         A := A + B;
       elsif op = SUB then
-         a := b - a;
+         A := B - A;
       elsif op = MUL then
-         begin
-            a := a * b;
-         exception
-            when Signed_BigNumOverFlow =>
-               Put_Line
-                 ("Result for Signed_BigNum multiply needs more digits");
-               return;
-         end;
+         A := A * B;
       end if;
 
-      push (a, s);
+      push (A, S);
    end Math_Operation;
 
    ----------------------------------------------------------
@@ -97,23 +91,19 @@ procedure bigcalc is
    -- Precondition: x <= y
    -- Postcondition: Returns product of x and y
    ----------------------------------------------------------
-   procedure Perform_Operation (op : in Operator; s : in out Stack) is
+   procedure Perform_Operation (op : in Operator; S : in out Stack) is
    begin
       case op is
          when SUB | ADD | MUL =>
-            Math_Operation (op, s);
+            Math_Operation (op, S);
          when PRINT =>
-            Put (top (s));
+            Put (top (S));
             New_Line;
          when POP =>
-            pop (s);
+            pop (S);
          when EMPTY =>
-            Print_Clear_Stack (s);
+            Print_Clear_Stack (S);
       end case;
-
-   exception
-      when Stack_Empty =>
-         Put_Line (Error_Message);
    end Perform_Operation;
 
    ----------------------------------------------------------
@@ -123,11 +113,11 @@ procedure bigcalc is
    -- Postcondition: Returns product of x and y
    ----------------------------------------------------------
    procedure Get (op : out Operator) is
-      c : Character;
+      C : Character;
    begin
-      Get (c);
+      Get (C);
 
-      case c is
+      case C is
          when '-' =>
             op := SUB;
          when '+' =>
@@ -141,7 +131,7 @@ procedure bigcalc is
          when 'e' =>
             op := EMPTY;
          when others =>
-            raise Operator_Exception;
+            raise Operator_Exception with "Unknown Operator <" & C & ">";
       end case;
    end Get;
 
@@ -151,8 +141,8 @@ procedure bigcalc is
    -- Returns: True if c in "+-*pPq"
    ----------------------------------------------------------
    function Is_Operator
-     (c : in Character) return Boolean is
-     (Index (OP_Chars, "" & c) > 0);
+     (C : in Character) return Boolean is
+     (Index (OP_Chars, "" & C) > 0);
 
    ----------------------------------------------------------
    -- Purpose: Check if a Character should be treated as a number
@@ -160,8 +150,8 @@ procedure bigcalc is
    -- Returns: True if c is in '0'..'9' or '_'
    ----------------------------------------------------------
    function Is_Number
-     (c : in Character) return Boolean is
-     (c in '0' .. '9' or c = '_');
+     (C : in Character) return Boolean is
+     (C in '0' .. '9' or C = '_');
 
    ----------------------------------------------------------
    -- Purpose: Get the next Character, if it's not a space, log an
@@ -174,9 +164,7 @@ procedure bigcalc is
 
       -- Got something other than a space, log error.
       if letter /= ' ' then
-         Put ("Unknown input <");
-         Put (letter);
-         Put_Line ("> skipping...");
+         raise Operator_Exception with "Unknown input <" & letter & ">";
       end if;
    end Handle_Other;
 
@@ -184,45 +172,49 @@ procedure bigcalc is
    -- Purpose: Read in the next Signed_BigNum and push it on the Stack
    -- Parameters: s: Stack to push input onto.
    ----------------------------------------------------------
-   procedure Handle_Number (s : out Stack) is
+   procedure Handle_Number (S : out Stack) is
       bn : Signed_BigNum;
    begin
       Get (bn);
-      push (bn, s);
+      push (bn, S);
    end Handle_Number;
 
    ----------------------------------------------------------
    -- Purpose: Read in the next Operator and perform it's action.
    -- Parameters: s: Stack to perform operations on.
    ----------------------------------------------------------
-   procedure Handle_Operator (s : out Stack) is
-      oper : Operator;
+   procedure Handle_Operator (S : out Stack) is
+      op : Operator;
    begin
-      Get (oper);
-      Perform_Operation (oper, s);
+      Get (op);
+      Perform_Operation (op, S);
    end Handle_Operator;
 
    ----------------------------------------------------------
-   -- Purpose: Parse input Character and route execution accordingly.
+   -- Purpose: Process input Character and route execution accordingly.
    -- Parameters: c: Character to parse for execution flow.
    --             s: Stack to preform operations on.
    ----------------------------------------------------------
-   procedure Parse_Char (c : in Character; s : in out Stack) is
+   procedure Process_Input (C : in Character; S : in out Stack) is
    begin
-      if Is_Number (c) then
-         Handle_Number (s);
-      elsif Is_Operator (c) then
-         Handle_Operator (s);
+      if Is_Number (C) then
+         Handle_Number (S);
+      elsif Is_Operator (C) then
+         Handle_Operator (S);
       else
          Handle_Other;
       end if;
-   end Parse_Char;
+
+   exception
+      when E : Stack_Empty | Signed_BigNumOverFlow | Operator_Exception =>
+         Put_Line (Exception_Message(E));
+   end Process_Input;
 
    ----------------------------------------------------------
    -- Purpose: Continue taking user input until 'q' is recieved.
    -- Parameters: s: values to multiply
    ----------------------------------------------------------
-   procedure Input_Loop (s : in out Stack) is
+   procedure Input_Loop (S : in out Stack) is
       letter : Character;    -- Next Character of input
       nl     : Boolean;      -- Was a newline recieved
    begin
@@ -235,7 +227,7 @@ procedure bigcalc is
             Skip_Line;
          else
             -- Send the character for processing
-            Parse_Char (letter, s);
+            Process_Input (letter, S);
          end if;
 
       end loop;

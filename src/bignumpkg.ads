@@ -6,10 +6,10 @@ package BigNumPkg is
    type BigNum is private;
 
    Zero : constant BigNum;
-   One : constant BigNum;
+   One  : constant BigNum;
 
    First : constant BigNum;
-   Last : constant BigNum;
+   Last  : constant BigNum;
 
    BigNumOverFlow : exception;
 

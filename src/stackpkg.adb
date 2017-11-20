@@ -1,44 +1,42 @@
 package body StackPkg is
+   ----------------------------------------------------------
+   -- Purpose: Determine if stack is empty
+   ----------------------------------------------------------
+   function isEmpty (S : Stack) return Boolean is (S.Top = 0);
 
-   -- Determine if stack is empty or full
-   function isEmpty (s : Stack) return Boolean is
-   begin
-      return s.Top = 0;
-   end isEmpty;
+   ----------------------------------------------------------
+   -- Purpose: Determine if stack is full
+   ----------------------------------------------------------
+   function isFull (S : Stack) return Boolean is (S.Top = Size);
 
-   function isFull (s : Stack) return Boolean is
+   ----------------------------------------------------------
+   -- Purpose: Return top element from Stack s
+   ----------------------------------------------------------
+   function top (S : Stack) return ItemType is
+     (if isEmpty (S) then raise Stack_Empty else s.Elements (S.Top));
+   
+   ----------------------------------------------------------
+   -- Purpose: Put element Item onto Stack s
+   ----------------------------------------------------------
+   procedure push (item : ItemType; S : in out Stack) is
    begin
-      return s.Top = Size;
-   end isFull;
-
-   -- Put element Item onto Stack s
-   procedure push (item : ItemType; s : in out Stack) is
-   begin
-      if isFull (s) then
+      if isFull (S) then
          raise Stack_Full;
+      else
+         S.Top              := S.Top + 1;
+         S.Elements (S.Top) := item;
       end if;
-
-      s.Top              := s.Top + 1;
-      s.Elements (s.Top) := item;
    end push;
-
-   -- Remove an element from Stack s
-   procedure pop (s : in out Stack) is
+  
+   ----------------------------------------------------------
+   -- Purpose: Remove an element from Stack s
+   ----------------------------------------------------------
+   procedure pop (S : in out Stack) is
    begin
-      if isEmpty (s) then
+      if isEmpty (S) then
          raise Stack_Empty;
+      else
+         S.Top := S.Top - 1;
       end if;
-
-      s.Top := s.Top - 1;
    end pop;
-
-   -- Return top element from Stack s
-   function top (s : Stack) return ItemType is
-   begin
-      if isEmpty (s) then
-         raise Stack_Empty;
-      end if;
-
-      return s.Elements (s.Top);
-   end top;
 end StackPkg;
